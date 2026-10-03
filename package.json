@@ -5,7 +5,8 @@
   "description": "Sito ecommerce cinematografico di tazzedimerda — laboratorio ceramico di Arena (VV), Calabria",
   "scripts": {
     "build": "esbuild src/stage.js --bundle --minify --format=iife --target=es2020 --legal-comments=none --outfile=js/stage.js && cp node_modules/lenis/dist/lenis.min.js vendor/lenis.min.js",
-    "serve": "python3 -m http.server 8080"
+    "serve": "python3 -m http.server 8080",
+    "dist": "rm -rf dist && mkdir dist && cp -r index.html favicon.svg css js vendor dist/"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",
