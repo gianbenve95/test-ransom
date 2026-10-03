@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>tazzedimerda — Ceramiche di carattere dal laboratorio di Arena, Calabria</title>
+  <meta name="description" content="Tazze di merda: ceramiche artigianali fatte a mano nel nostro laboratorio di Arena (VV), in Calabria. Il nome è una provocazione. La qualità no.">
+  <meta name="theme-color" content="#0a0705">
+  <meta property="og:title" content="tazzedimerda — Tazze di merda. Fatte benissimo.">
+  <meta property="og:description" content="Ceramiche artigianali dal laboratorio di Arena, Calabria. Spedizione in tutta Italia.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;700&family=Unbounded:wght@500;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="is-loading">
+
+  <!-- LOADER -->
+  <div class="loader" id="loader" aria-hidden="true">
+    <div class="loader__mug" id="loaderMug"></div>
+    <div class="loader__count"><span id="loaderNum">0</span><small>%</small></div>
+    <p class="loader__msg" id="loaderMsg">Accendo il forno ad Arena…</p>
+    <div class="loader__bar"><i id="loaderBar"></i></div>
+  </div>
+
+  <div class="progress" id="progress"></div>
+  <div class="grain" aria-hidden="true"></div>
+  <div class="cursor" id="cursor" aria-hidden="true"><span></span></div>
+
+  <!-- HEADER -->
+  <header class="nav" id="nav">
+    <a href="#top" class="logo" data-cursor="home" aria-label="tazzedimerda — home">
+      <span class="logo__mark" aria-hidden="true"></span>
+      <span class="logo__text">tazze<b>di</b>merda</span>
+    </a>
+    <nav class="nav__links" aria-label="Principale">
+      <a href="#shop">Shop</a>
+      <a href="#lab">Il Laboratorio</a>
+      <a href="#custom">Su misura</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <div class="nav__actions">
+      <button class="cart-btn" id="cartBtn" aria-label="Apri il carrello" data-cursor="carrello">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 7h12l-1 13H7z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg>
+        <span>Carrello</span><em id="cartCount">0</em>
+      </button>
+      <button class="burger" id="burger" aria-label="Apri il menu" aria-expanded="false"><i></i><i></i></button>
+    </div>
+  </header>
+
+  <!-- FULLSCREEN MENU -->
+  <div class="menu" id="menu" aria-hidden="true">
+    <nav class="menu__links">
+      <a href="#shop"><span>01</span>Shop</a>
+      <a href="#lab"><span>02</span>Il Laboratorio</a>
+      <a href="#custom"><span>03</span>Su misura</a>
+      <a href="#voci"><span>04</span>Recensioni</a>
+      <a href="#faq"><span>05</span>FAQ</a>
+      <a href="#contatti"><span>06</span>Contatti</a>
+    </nav>
+    <div class="menu__foot">
+      <p>Laboratorio · Arena (VV) · Calabria</p>
+      <p>Spedizione gratuita sopra €60</p>
+    </div>
+  </div>
+
+  <main id="top">
+
+    <!-- HERO -->
+    <section class="hero" id="hero">
+      <canvas id="heroCanvas" aria-hidden="true"></canvas>
+      <div class="hero__glow" aria-hidden="true"></div>
+
+      <div class="hero__tag"><i></i> Laboratorio artigianale · Arena (VV), Calabria · dal 2019</div>
+
+      <h1 class="hero__title" aria-label="Tazze di merda">
+        <span class="line"><span class="line__in" data-delay="0">TAZZE</span></span>
+        <span class="line line--mid"><span class="line__in" data-delay="1"><em>di</em></span>
+          <span class="hero__mug" id="heroMug" data-cursor="scalda"></span>
+        </span>
+        <span class="line"><span class="line__in" data-delay="2">MERDA<sup>®</sup></span></span>
+      </h1>
+
+      <div class="hero__bottom">
+        <p class="hero__lead">Il nome è una provocazione.<br>La ceramica è <u>seria</u>. Modellata, smaltata e cotta a mano, a pochi chilometri dal Tirreno e dallo Ionio.</p>
+        <div class="hero__cta">
+          <a href="#shop" class="btn btn--primary magnetic" data-cursor="shop"><span>Entra nello shop</span><i>→</i></a>
+          <a href="#lab" class="btn btn--ghost magnetic" data-cursor="lab"><span>Vedi il laboratorio</span></a>
+        </div>
+        <a href="#manifesto" class="hero__scroll" aria-label="Scorri verso il basso"><span>Scroll</span><i></i></a>
+      </div>
+
+      <div class="badge" aria-hidden="true">
+        <svg viewBox="0 0 200 200">
+          <defs><path id="circ" d="M100 100 m-78 0 a78 78 0 1 1 156 0 a78 78 0 1 1 -156 0"/></defs>
+          <text><textPath href="#circ">Fatte a mano ad Arena ✦ 100% Calabria ✦ Zero cattivi odori ✦</textPath></text>
+        </svg>
+        <b>VV</b>
+      </div>
+    </section>
+
+    <!-- MARQUEE -->
+    <div class="marquee" aria-hidden="true">
+      <div class="marquee__track">
+        <span>Gres artigianale</span><i>✦</i><span>Cotte a 1.240 °C</span><i>✦</i><span>Fatte ad Arena</span><i>✦</i><span>Spedizione in 48h</span><i>✦</i><span>Lavabili in lavastoviglie</span><i>✦</i><span>Soddisfatti o rimborsati</span><i>✦</i>
+        <span>Gres artigianale</span><i>✦</i><span>Cotte a 1.240 °C</span><i>✦</i><span>Fatte ad Arena</span><i>✦</i><span>Spedizione in 48h</span><i>✦</i><span>Lavabili in lavastoviglie</span><i>✦</i><span>Soddisfatti o rimborsati</span><i>✦</i>
+      </div>
+    </div>
+
+    <!-- MANIFESTO -->
+    <section class="manifesto" id="manifesto">
+      <p class="eyebrow reveal">( 01 — Manifesto )</p>
+      <p class="manifesto__text" id="manifestoText">Abbiamo preso la parola più volgare d'Italia e l'abbiamo cotta a 1.240 gradi. Il risultato sono tazze che non chiedono scusa: pesanti nel posto giusto, lucide nel posto giusto, fatte da mani calabresi che hanno qualcosa da dire. Se il nome ti fa ridere, sei già dei nostri. Se ti offende, ordinane una lo stesso.</p>
+      <div class="manifesto__stats">
+        <div class="stat reveal"><b data-count="12840">0</b><span>tazze consegnate</span></div>
+        <div class="stat reveal"><b data-count="1240" data-suffix=" °C">0</b><span>temperatura di cottura</span></div>
+        <div class="stat reveal"><b data-count="4">0</b><span>artigiani nel laboratorio</span></div>
+        <div class="stat reveal"><b data-count="98" data-suffix="%">0</b><span>clienti che ci ricomprano</span></div>
+      </div>
+    </section>
+
+    <!-- SHOP -->
+    <section class="shop" id="shop">
+      <header class="section-head">
+        <p class="eyebrow reveal">( 02 — Shop )</p>
+        <h2 class="display reveal">La collezione<br><em>che profuma di successo</em></h2>
+      </header>
+
+      <div class="shop__toolbar reveal">
+        <div class="filters" id="filters" role="tablist" aria-label="Categorie"></div>
+        <label class="sort">Ordina
+          <select id="sort">
+            <option value="default">In evidenza</option>
+            <option value="asc">Prezzo ↑</option>
+            <option value="desc">Prezzo ↓</option>
+            <option value="name">Nome A–Z</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="grid" id="grid" aria-live="polite"></div>
+    </section>
+
+    <!-- LAB (scroll orizzontale) -->
+    <section class="lab" id="lab">
+      <div class="lab__sticky">
+        <div class="lab__head">
+          <p class="eyebrow">( 03 — Il Laboratorio )</p>
+          <h2 class="display">Dal fango<br>alla <em>gloria</em></h2>
+          <p class="lab__sub">Arena, provincia di Vibo Valentia. Cinque stazioni, quattro persone, zero scorciatoie.</p>
+          <div class="lab__progress"><i id="labBar"></i></div>
+        </div>
+        <div class="lab__view" id="labView"><div class="lab__track" id="labTrack">
+          <article class="station">
+            <span class="station__n">01</span>
+            <div class="station__art" data-art="argilla"></div>
+            <h3>Argilla</h3>
+            <p>Gres selezionato, impastato e lasciato riposare per giorni. Un impasto nervoso non fa una tazza felice.</p>
+            <small>~ 48 h di riposo</small>
+          </article>
+          <article class="station">
+            <span class="station__n">02</span>
+            <div class="station__art" data-art="tornio"></div>
+            <h3>Tornio</h3>
+            <p>Ogni forma nasce a mano, una alla volta. Le piccole imperfezioni non sono difetti: sono la firma del Mastro.</p>
+            <small>~ 12 min a pezzo</small>
+          </article>
+          <article class="station">
+            <span class="station__n">03</span>
+            <div class="station__art" data-art="smalto"></div>
+            <h3>Smalto</h3>
+            <p>Tre passaggi di smalto, ricette nostre: cioccolato, oro, verde acido, rosso ’nduja. Nessun colore è un caso.</p>
+            <small>3 mani · 6 ricette</small>
+          </article>
+          <article class="station">
+            <span class="station__n">04</span>
+            <div class="station__art" data-art="forno"></div>
+            <h3>Forno</h3>
+            <p>Si sale a 1.240 °C in dodici ore. Il forno non perdona e la tazza non dimentica: ne esce vetrificata e a prova di lunedì.</p>
+            <small>1.240 °C · 12 h</small>
+          </article>
+          <article class="station">
+            <span class="station__n">05</span>
+            <div class="station__art" data-art="collaudo"></div>
+            <h3>Collaudo</h3>
+            <p>Ogni tazza viene riempita, svuotata, ascoltata e tenuta in mano. Se non ci sta bene, non parte. Fine della storia.</p>
+            <small>1 tazza su 7 non passa</small>
+          </article>
+          <article class="station station--map">
+            <span class="station__n">⌖</span>
+            <div class="station__art" id="mapArt"></div>
+            <h3>Arena, Calabria</h3>
+            <p>38,5° N · 16,3° E<br>Zona artigianale di Arena (VV).<br>Visite in laboratorio su appuntamento.</p>
+            <a href="#contatti" class="btn btn--small">Prenota una visita →</a>
+          </article>
+        </div></div>
+      </div>
+    </section>
+
+    <!-- CUSTOM / CONFIGURATORE -->
+    <section class="custom" id="custom">
+      <header class="section-head">
+        <p class="eyebrow reveal">( 04 — Su misura )</p>
+        <h2 class="display reveal">Progetta la tua<br><em>tazza di merda</em></h2>
+        <p class="lede reveal">Scegli forma, smalto ed emblema. Aggiungi una scritta fino a 18 caratteri. Il Mastro la realizza a mano in 7–10 giorni lavorativi.</p>
+      </header>
+
+      <div class="cfg">
+        <div class="cfg__preview" id="cfgPreview" data-cursor="ruota"></div>
+        <form class="cfg__panel" id="cfgForm" autocomplete="off">
+          <fieldset>
+            <legend>Forma</legend>
+            <div class="chips" id="cfgShape"></div>
+          </fieldset>
+          <fieldset>
+            <legend>Smalto <small id="cfgGlazeName"></small></legend>
+            <div class="swatches" id="cfgGlaze"></div>
+          </fieldset>
+          <fieldset>
+            <legend>Emblema</legend>
+            <div class="chips" id="cfgEmblem"></div>
+          </fieldset>
+          <fieldset>
+            <legend>Scritta <small><span id="cfgCount">0</span>/18</small></legend>
+            <input type="text" id="cfgLabel" maxlength="18" placeholder="es. BUONGIORNO UN CAZZO" aria-label="Scritta sulla tazza">
+          </fieldset>
+          <div class="cfg__buy">
+            <div class="cfg__price"><small>Totale</small><b id="cfgPrice">€29</b></div>
+            <button type="submit" class="btn btn--primary magnetic"><span>Aggiungi al carrello</span><i>→</i></button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- VOCI / RECENSIONI -->
+    <section class="voci" id="voci">
+      <header class="section-head">
+        <p class="eyebrow reveal">( 05 — Dicono di noi )</p>
+        <h2 class="display reveal">Gente <em>soddisfatta</em><br>e un po' sconvolta</h2>
+      </header>
+      <div class="voci__track" id="vociTrack">
+        <figure class="quote"><div class="stars">★★★★★</div><blockquote>“L'ho regalata al mio capo. Ora la usa in riunione. Non sa cosa c'è disegnato.”</blockquote><figcaption><b>Marco R.</b> · Milano</figcaption></figure>
+        <figure class="quote"><div class="stars">★★★★★</div><blockquote>“Imballaggio perfetto, ceramica bellissima, nome imbarazzante alla cassa del corriere. Dieci e lode.”</blockquote><figcaption><b>Giulia T.</b> · Torino</figcaption></figure>
+        <figure class="quote"><div class="stars">★★★★★</div><blockquote>“Ho visitato il laboratorio ad Arena: caffè, ’nduja e mani sporche d'argilla. Ho comprato quattro tazze.”</blockquote><figcaption><b>Domenico C.</b> · Vibo Valentia</figcaption></figure>
+        <figure class="quote"><div class="stars">★★★★★</div><blockquote>“L'ho presa per ridere. Ora è l'unica tazza che uso. Mia moglie dice che ho un problema.”</blockquote><figcaption><b>Luca B.</b> · Bologna</figcaption></figure>
+        <figure class="quote"><div class="stars">★★★★☆</div><blockquote>“Bellissima, solo un po' troppo pesante. Ma l'ho presa Capolavoro Solido, quindi mi sta bene.”</blockquote><figcaption><b>Sara M.</b> · Roma</figcaption></figure>
+        <figure class="quote"><div class="stars">★★★★★</div><blockquote>“Regalo di laurea per mio fratello ingegnere. Pianto dal ridere, poi il caffè più buono della sua vita.”</blockquote><figcaption><b>Antonella P.</b> · Catanzaro</figcaption></figure>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="faq" id="faq">
+      <header class="section-head">
+        <p class="eyebrow reveal">( 06 — FAQ )</p>
+        <h2 class="display reveal">Domande<br><em>(quasi) serie</em></h2>
+      </header>
+      <div class="faq__list">
+        <details class="reveal"><summary>Le tazze sono davvero fatte ad Arena?<i></i></summary><p>Sì. Dalla lavorazione dell'argilla alla cottura, tutto avviene nel nostro laboratorio ad Arena, in provincia di Vibo Valentia. Nessun intermediario, nessuna produzione in serie all'estero.</p></details>
+        <details class="reveal"><summary>Posso usarle in lavastoviglie e microonde?<i></i></summary><p>Sì a entrambe. Gres vetrificato a 1.240 °C, smalti alimentari certificati. Unica eccezione: le finiture oro, che preferiscono un lavaggio a mano per restare luminose a lungo.</p></details>
+        <details class="reveal"><summary>Quanto costa e quanto tempo impiega la spedizione?<i></i></summary><p>Spedizione gratuita sopra i 60 €, altrimenti 5,90 €. Consegna in 48–72 ore lavorative in Italia, con corriere tracciato. Le tazze su misura richiedono 7–10 giorni lavorativi di produzione.</p></details>
+        <details class="reveal"><summary>E se arriva rotta?<i></i></summary><p>Ci pensiamo noi: ci mandi una foto entro 7 giorni e ti rispediamo una tazza nuova o ti rimborsiamo. L'imballaggio è rinforzato proprio per evitare che succeda.</p></details>
+        <details class="reveal"><summary>Fate spedizioni all'estero?<i></i></summary><p>Per ora consegniamo in Italia e nei principali Paesi UE. Scrivici dalla sezione contatti con il tuo indirizzo e ti prepariamo un preventivo.</p></details>
+        <details class="reveal"><summary>Perché questo nome?<i></i></summary><p>Perché le cose migliori nascono da una provocazione. E perché in Calabria diciamo le cose come stanno: il nome fa ridere, la ceramica fa sul serio.</p></details>
+      </div>
+    </section>
+
+    <!-- CONTATTI / NEWSLETTER -->
+    <section class="contact" id="contatti">
+      <div class="contact__box">
+        <p class="eyebrow reveal">( 07 — Contatti )</p>
+        <h2 class="display display--xl reveal">Facciamo<br><em>qualcosa di grosso?</em></h2>
+        <div class="contact__grid">
+          <form class="form reveal" id="newsForm">
+            <h3>Entra nel club</h3>
+            <p>Nuove colate, edizioni limitate e uno sconto del 10% sul primo ordine. Niente spam, giuriamo sulla ’nduja.</p>
+            <div class="field"><input type="email" id="newsEmail" placeholder="la.tua@email.it" required aria-label="Email"><button class="btn btn--primary" type="submit"><span>Iscrivimi</span></button></div>
+            <small class="form__msg" id="newsMsg" role="status"></small>
+          </form>
+          <div class="contact__info reveal">
+            <h3>Il laboratorio</h3>
+            <address>
+              Zona artigianale<br>
+              Arena (VV) — Calabria, Italia<br><br>
+              <a href="mailto:ciao@tazzedimerda.it">ciao@tazzedimerda.it</a><br>
+              <a href="tel:+390000000000">+39 000 000 0000</a>
+            </address>
+            <p class="hours">Lun–Ven 8:30–13:00 / 15:00–18:30<br>Sabato su appuntamento</p>
+            <div class="socials"><a href="#" aria-label="Instagram">Instagram</a><a href="#" aria-label="TikTok">TikTok</a><a href="#" aria-label="YouTube">YouTube</a></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="footer__word" aria-hidden="true">tazzedimerda</div>
+    <div class="footer__row">
+      <p>© <span id="year"></span> tazzedimerda — Laboratorio ceramico, Arena (VV), Calabria.</p>
+      <p><a href="#">Privacy</a> · <a href="#">Cookie</a> · <a href="#">Condizioni di vendita</a> · <a href="#">Resi</a></p>
+      <button class="to-top" id="toTop" data-cursor="su">↑ Torna su</button>
+    </div>
+  </footer>
+
+  <!-- CARRELLO -->
+  <div class="overlay" id="overlay"></div>
+  <aside class="drawer" id="drawer" aria-hidden="true" aria-label="Carrello">
+    <header class="drawer__head">
+      <h3>Il tuo carrello</h3>
+      <button class="icon-btn" id="cartClose" aria-label="Chiudi carrello">✕</button>
+    </header>
+    <div class="ship">
+      <p id="shipMsg"></p>
+      <div class="ship__bar"><i id="shipBar"></i></div>
+    </div>
+    <ul class="drawer__items" id="cartItems"></ul>
+    <div class="drawer__empty" id="cartEmpty">
+      <div id="emptyMug"></div>
+      <p>Il carrello è vuoto.<br>Come la tua tazza il lunedì.</p>
+      <a href="#shop" class="btn btn--small" id="emptyGo">Vai allo shop →</a>
+    </div>
+    <footer class="drawer__foot" id="cartFoot">
+      <div class="coupon">
+        <input type="text" id="couponInput" placeholder="Codice sconto (prova ARENA10)" aria-label="Codice sconto">
+        <button type="button" id="couponBtn">Applica</button>
+      </div>
+      <dl class="totals">
+        <div><dt>Subtotale</dt><dd id="tSub">€0</dd></div>
+        <div id="tDiscRow" hidden><dt>Sconto</dt><dd id="tDisc">−€0</dd></div>
+        <div><dt>Spedizione</dt><dd id="tShip">€0</dd></div>
+        <div class="grand"><dt>Totale</dt><dd id="tTot">€0</dd></div>
+      </dl>
+      <button class="btn btn--primary btn--block" id="checkoutBtn"><span>Vai al checkout</span><i>→</i></button>
+    </footer>
+  </aside>
+
+  <!-- MODALE PRODOTTO -->
+  <div class="modal" id="productModal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Dettaglio prodotto">
+    <div class="modal__box">
+      <button class="icon-btn modal__close" data-close aria-label="Chiudi">✕</button>
+      <div class="modal__art" id="pmArt"></div>
+      <div class="modal__body">
+        <p class="eyebrow" id="pmCat"></p>
+        <h3 id="pmName"></h3>
+        <p class="modal__price" id="pmPrice"></p>
+        <p id="pmDesc"></p>
+        <ul class="specs" id="pmSpecs"></ul>
+        <div class="qty-add">
+          <div class="qty"><button type="button" id="pmMinus" aria-label="Meno">−</button><span id="pmQty">1</span><button type="button" id="pmPlus" aria-label="Più">+</button></div>
+          <button class="btn btn--primary" id="pmAdd"><span>Aggiungi al carrello</span><i>→</i></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALE CHECKOUT -->
+  <div class="modal" id="checkoutModal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Checkout">
+    <div class="modal__box modal__box--narrow">
+      <button class="icon-btn modal__close" data-close aria-label="Chiudi">✕</button>
+      <form id="checkoutForm" class="checkout">
+        <h3>Checkout</h3>
+        <p class="checkout__note">Modalità demo: nessun pagamento reale e nessun dato viene inviato o salvato.</p>
+        <div class="two">
+          <label>Nome<input name="nome" required autocomplete="given-name"></label>
+          <label>Cognome<input name="cognome" required autocomplete="family-name"></label>
+        </div>
+        <label>Email<input type="email" name="email" required autocomplete="email"></label>
+        <label>Indirizzo<input name="indirizzo" required autocomplete="street-address"></label>
+        <div class="two">
+          <label>CAP<input name="cap" inputmode="numeric" pattern="[0-9]{5}" required autocomplete="postal-code"></label>
+          <label>Città<input name="citta" required autocomplete="address-level2"></label>
+        </div>
+        <div class="checkout__sum">Totale ordine <b id="coTotal"></b></div>
+        <button class="btn btn--primary btn--block" type="submit"><span>Conferma ordine</span><i>→</i></button>
+      </form>
+      <div class="checkout__done" id="checkoutDone" hidden>
+        <div id="doneMug"></div>
+        <h3>Ordine ricevuto!</h3>
+        <p>Il Mastro ha già acceso il forno.<br>Numero ordine <b id="orderNum"></b></p>
+        <button class="btn btn--primary" data-close><span>Torna allo shop</span></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
