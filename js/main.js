@@ -1,6 +1,7 @@
 /* ==========================================================================
-   tazzedimerda — interazioni, shop, carrello, configuratore
-   Nessuna dipendenza: JavaScript puro.
+   tazzedimerda — interfaccia, regia, shop, carrello, configuratore, audio
+   La scena 3D (js/stage.js) è un miglioramento progressivo: se WebGL non c'è,
+   tutto funziona con le tazze SVG di js/data.js.
    ========================================================================== */
 (() => {
   'use strict';
@@ -10,13 +11,48 @@
   const $ = (s, el = document) => el.querySelector(s);
   const $$ = (s, el = document) => [...el.querySelectorAll(s)];
   const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
-  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const finePointer = matchMedia('(hover: hover) and (pointer: fine)').matches;
   const money = (n) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', minimumFractionDigits: Number.isInteger(n) ? 0 : 2 }).format(n);
   const store = {
     get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage non disponibile */ } }
   };
+  const has3D = () => !!(window.TDM3D && window.TDM3D.ready);
+  const raf = () => new Promise((r) => requestAnimationFrame(r));
+  const piecewise = (pts, x) => {
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [x0, y0] = pts[i], [x1, y1] = pts[i + 1];
+      if (x <= x1) return y0 + (y1 - y0) * clamp((x - x0) / (x1 - x0));
+    }
+    return pts[pts.length - 1][1];
+  };
+
+  /* ------------------------------------------------------------------ *
+   * Scroll morbido (Lenis)
+   * ------------------------------------------------------------------ */
+  let lenis = null;
+  if (window.Lenis && !reduceMotion) {
+    lenis = new window.Lenis({ lerp: .085, smoothWheel: true });
+    const loop = (t) => { lenis.raf(t); requestAnimationFrame(loop); };
+    requestAnimationFrame(loop);
+    lenis.stop();
+  }
+  function scrollToTarget(target) {
+    if (lenis) lenis.scrollTo(target, { duration: 1.8, easing: (t) => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2) });
+    else if (typeof target === 'number') scrollTo({ top: target, behavior: reduceMotion ? 'auto' : 'smooth' });
+    else target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth' });
+  }
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest('a[href^="#"]');
+    if (!a) return;
+    const id = a.getAttribute('href');
+    if (id === '#') { e.preventDefault(); return; }
+    const el = id === '#top' ? 0 : document.querySelector(id);
+    if (el === null) return;
+    e.preventDefault();
+    scrollToTarget(el);
+  });
 
   /* ------------------------------------------------------------------ *
    * Toast
@@ -31,132 +67,124 @@
   }
 
   /* ------------------------------------------------------------------ *
-   * Loader
+   * Immagini delle tazze: render 3D se disponibile, altrimenti SVG
    * ------------------------------------------------------------------ */
-  $('#loaderMug').innerHTML = mugSVG({ glaze: 'oro', shape: 'classica', emblem: 'swirl' });
-  const loaderMsgs = ['Accendo il forno ad Arena…', 'Impasto l’argilla…', 'Passo lo smalto…', 'Cuocio a 1.240 °C…', 'Collaudo le tazze…'];
-  (function runLoader() {
-    const num = $('#loaderNum'), bar = $('#loaderBar'), msg = $('#loaderMsg');
-    const dur = reduceMotion ? 200 : 1900;
-    const t0 = performance.now();
-    function tick(t) {
-      const p = clamp((t - t0) / dur);
-      const eased = 1 - Math.pow(1 - p, 3);
-      num.textContent = Math.round(eased * 100);
-      bar.style.width = eased * 100 + '%';
-      msg.textContent = loaderMsgs[Math.min(loaderMsgs.length - 1, Math.floor(p * loaderMsgs.length))];
-      if (p < 1) requestAnimationFrame(tick); else done();
+  function art(cfg, alt = '') {
+    if (has3D()) {
+      try { return `<img src="${window.TDM3D.renderStill(cfg)}" alt="${esc(alt)}" draggable="false">`; } catch { /* fallback SVG */ }
     }
-    function done() { setTimeout(() => { document.body.classList.remove('is-loading'); }, 250); }
-    requestAnimationFrame(tick);
-    setTimeout(() => document.body.classList.remove('is-loading'), 5000); // rete di sicurezza
-  })();
-
-  /* ------------------------------------------------------------------ *
-   * Hero: titolo, tazza e canvas particellare
-   * ------------------------------------------------------------------ */
-  $$('.line__in').forEach((el) => el.style.setProperty('--i', el.dataset.delay || 0));
-  $('#heroMug').innerHTML = mugSVG({ glaze: 'oro', shape: 'classica', emblem: 'swirl' });
-
-  const hero = $('#hero');
-  const heroMug = $('#heroMug');
-  if (finePointer && !reduceMotion) {
-    hero.addEventListener('mousemove', (e) => {
-      const r = hero.getBoundingClientRect();
-      const x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5;
-      heroMug.style.transform = `rotate(${-8 + x * 14}deg) translate(${x * 30}px, ${y * 20}px)`;
-    });
-    hero.addEventListener('mouseleave', () => { heroMug.style.transform = ''; });
+    return mugSVG(cfg);
+  }
+  const turntables = new Map();
+  function getTurntable(key, cfg) {
+    if (!has3D()) return null;
+    if (!turntables.has(key)) turntables.set(key, window.TDM3D.renderTurntable(cfg, 24, 520));
+    return turntables.get(key);
   }
 
-  (function heroCanvas() {
-    const cv = $('#heroCanvas');
-    const ctx = cv.getContext('2d');
-    if (!ctx) return;
-    let w, h, dpr, parts = [], visible = true, mx = -999, my = -999;
-    const COLORS = ['227,167,47', '182,242,58', '154,98,52', '244,234,216'];
-    const make = (burst, bx, by) => {
-      const a = Math.random() * Math.PI * 2, sp = Math.random() * 5 + 1;
-      return {
-        x: burst ? bx : Math.random() * w, y: burst ? by : h + Math.random() * 60,
-        vx: burst ? Math.cos(a) * sp : (Math.random() - .5) * .3,
-        vy: burst ? Math.sin(a) * sp - 1 : -(Math.random() * .6 + .15),
-        r: Math.random() * 3 + .8, c: COLORS[(Math.random() * COLORS.length) | 0],
-        life: burst ? 1 : Math.random() * .6 + .4, burst
-      };
-    };
-    function resize() {
-      dpr = Math.min(2, window.devicePixelRatio || 1);
-      w = hero.clientWidth; h = hero.clientHeight;
-      cv.width = w * dpr; cv.height = h * dpr;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const n = Math.round(clamp(w / 14, 40, 110));
-      parts = Array.from({ length: n }, () => { const p = make(); p.y = Math.random() * h; return p; });
-    }
-    function frame() {
-      if (visible) {
-        ctx.clearRect(0, 0, w, h);
-        for (let i = parts.length - 1; i >= 0; i--) {
-          const p = parts[i];
-          const dx = p.x - mx, dy = p.y - my, d2 = dx * dx + dy * dy;
-          if (d2 < 14000) { const f = (1 - d2 / 14000) * 1.4; p.vx += (dx / Math.sqrt(d2 + 1)) * f * .35; p.vy += (dy / Math.sqrt(d2 + 1)) * f * .35; }
-          p.x += p.vx + Math.sin((p.y + i * 30) * .01) * .25; p.y += p.vy;
-          p.vx *= .985; p.vy = p.burst ? p.vy * .96 + .02 : p.vy * .995;
-          if (p.burst) { p.life -= .012; if (p.life <= 0) { parts.splice(i, 1); continue; } }
-          else if (p.y < -20) { parts[i] = make(); continue; }
-          const a = p.burst ? p.life : p.life * Math.min(1, (h - p.y) / 160) * .75;
-          const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 4);
-          g.addColorStop(0, `rgba(${p.c},${a})`); g.addColorStop(1, `rgba(${p.c},0)`);
-          ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 4, 0, 6.283); ctx.fill();
-        }
-      }
-      requestAnimationFrame(frame);
-    }
-    resize();
-    window.addEventListener('resize', resize);
-    hero.addEventListener('mousemove', (e) => { const r = hero.getBoundingClientRect(); mx = e.clientX - r.left; my = e.clientY - r.top; });
-    hero.addEventListener('mouseleave', () => { mx = my = -999; });
-    heroMug.addEventListener('click', (e) => {
-      const r = hero.getBoundingClientRect();
-      for (let i = 0; i < 46; i++) parts.push(make(true, e.clientX - r.left, e.clientY - r.top));
-    });
-    new IntersectionObserver(([e]) => { visible = e.isIntersecting; }).observe(hero);
-    if (!reduceMotion) requestAnimationFrame(frame);
+  /* ------------------------------------------------------------------ *
+   * Titoli di testa: avanzamento reale (scena 3D + foto prodotto)
+   * ------------------------------------------------------------------ */
+  const loader = { asset: 0, done: false, t0: performance.now() };
+  const loaderMsgs = ['Accendo il forno…', 'Impasto l’argilla…', 'Monto il set ad Arena…', 'Fotografo le tazze…', 'Si gira.'];
+  function setAsset(p) { loader.asset = Math.max(loader.asset, p); }
+  (function loaderLoop() {
+    const minDur = reduceMotion ? 300 : 2600;
+    const tp = clamp((performance.now() - loader.t0) / minDur);
+    const shown = Math.min(tp, loader.asset);
+    $('#loaderNum').textContent = String(Math.round(shown * 100)).padStart(3, '0');
+    $('#loaderBar').style.width = shown * 100 + '%';
+    $('#loaderMsg').textContent = loaderMsgs[Math.min(loaderMsgs.length - 1, Math.floor(shown * (loaderMsgs.length - .01)))];
+    if (shown >= 1) return finishLoading();
+    requestAnimationFrame(loaderLoop);
   })();
+  setTimeout(() => setAsset(1), 14000); // rete di sicurezza
+
+  window.addEventListener('tdm:progress', (e) => setAsset(e.detail * .45));
+  window.addEventListener('tdm:3d-fail', () => { setAsset(1); renderFallbacks(); });
+  window.addEventListener('tdm:3d-ready', async () => {
+    setAsset(.45);
+    // pre-render delle foto prodotto durante i titoli di testa
+    for (let i = 0; i < PRODUCTS.length; i++) {
+      try { window.TDM3D.renderStill(PRODUCTS[i]); } catch { /* ignora */ }
+      setAsset(.45 + .55 * ((i + 1) / PRODUCTS.length));
+      await raf();
+    }
+    renderGrid(); renderCart(); renderCfg();
+    $('#emptyMug').innerHTML = art({ glaze: 'osso', shape: 'classica', emblem: 'nessuno' }, 'Tazza vuota');
+  });
+  if (!document.getElementById('stage')) setAsset(1);
+
+  function finishLoading() {
+    if (loader.done) return;
+    loader.done = true;
+    document.body.classList.remove('is-loading');
+    document.body.classList.add('intro');
+    if (has3D()) window.TDM3D.intro();
+    if (lenis) lenis.start();
+    setTimeout(() => document.body.classList.remove('intro'), 3400);
+    if (!has3D()) renderFallbacks();
+  }
+  function renderFallbacks() {
+    $('#heroFallback').innerHTML = mugSVG({ glaze: 'oro', shape: 'classica', emblem: 'swirl' });
+    $('#labFallback').innerHTML = mugSVG({ glaze: 'oro', shape: 'classica', emblem: 'swirl' });
+    $('#emptyMug').innerHTML = mugSVG({ glaze: 'osso', shape: 'classica', emblem: 'nessuno', steam: false });
+    renderCfg();
+  }
 
   /* ------------------------------------------------------------------ *
-   * Navigazione, progresso scroll, menu
+   * HUD: timecode + capitolo
    * ------------------------------------------------------------------ */
-  const nav = $('#nav'), progress = $('#progress');
+  const tcEl = $('#tc'), chapterEl = $('#hudChapter');
+  const chapters = $$('[data-chapter]');
+  let lastChapter = '';
+  (function hudLoop() {
+    const s = (performance.now() - loader.t0) / 1000;
+    const f = Math.floor((s % 1) * 24), p2 = (n) => String(n).padStart(2, '0');
+    tcEl.textContent = `${p2(Math.floor(s / 3600))}:${p2(Math.floor(s / 60) % 60)}:${p2(Math.floor(s) % 60)}:${p2(f)}`;
+    requestAnimationFrame(hudLoop);
+  })();
+  function updateChapter() {
+    const c = innerHeight / 2;
+    const cur = chapters.find((el) => { const r = el.getBoundingClientRect(); return r.top <= c && r.bottom >= c; });
+    const label = cur ? cur.dataset.chapter : lastChapter;
+    if (label && label !== lastChapter) { lastChapter = label; chapterEl.textContent = label; }
+    document.body.classList.toggle('hud-full', !!cur && ['hero', 'manifesto', 'lab', 'fine'].includes(cur.id));
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Navigazione, progresso, menu
+   * ------------------------------------------------------------------ */
+  const nav = $('#nav'), progress = $('#progress'), burger = $('#burger'), menu = $('#menu');
   let lastY = 0;
   function onScroll() {
-    const y = window.scrollY, max = document.documentElement.scrollHeight - innerHeight;
+    const y = scrollY, max = document.documentElement.scrollHeight - innerHeight;
     progress.style.transform = `scaleX(${max > 0 ? y / max : 0})`;
     nav.classList.toggle('is-solid', y > 40);
-    nav.classList.toggle('is-hidden', y > lastY && y > 400 && !menu.classList.contains('is-open'));
+    nav.classList.toggle('is-hidden', y > lastY + 2 && y > 400 && !menu.classList.contains('is-open'));
+    if (y < lastY - 2) nav.classList.remove('is-hidden');
     lastY = y;
   }
-  const burger = $('#burger'), menu = $('#menu');
   function setMenu(open) {
     menu.classList.toggle('is-open', open);
     menu.setAttribute('aria-hidden', String(!open));
     burger.setAttribute('aria-expanded', String(open));
     burger.setAttribute('aria-label', open ? 'Chiudi il menu' : 'Apri il menu');
-    document.body.classList.toggle('no-scroll', open);
+    lock();
   }
   burger.addEventListener('click', () => setMenu(!menu.classList.contains('is-open')));
   $$('a', menu).forEach((a) => a.addEventListener('click', () => setMenu(false)));
-  $('#toTop').addEventListener('click', () => window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' }));
+  $('#toTop').addEventListener('click', () => scrollToTarget(0));
   $('#year').textContent = new Date().getFullYear();
 
   /* ------------------------------------------------------------------ *
-   * Cursore personalizzato + pulsanti magnetici
+   * Cursore + pulsanti magnetici
    * ------------------------------------------------------------------ */
   if (finePointer) {
     const cur = $('#cursor'), dot = $('span', cur);
-    let cx = 0, cy = 0, tx = 0, ty = 0;
-    window.addEventListener('mousemove', (e) => { tx = e.clientX; ty = e.clientY; }, { passive: true });
-    (function loop() { cx += (tx - cx) * .22; cy += (ty - cy) * .22; cur.style.transform = `translate(${cx}px, ${cy}px)`; requestAnimationFrame(loop); })();
+    let cx = innerWidth / 2, cy = innerHeight / 2, tx = cx, ty = cy;
+    addEventListener('mousemove', (e) => { tx = e.clientX; ty = e.clientY; }, { passive: true });
+    (function loop() { cx += (tx - cx) * .2; cy += (ty - cy) * .2; cur.style.transform = `translate(${cx}px, ${cy}px)`; requestAnimationFrame(loop); })();
     document.addEventListener('mouseover', (e) => {
       const t = e.target.closest('[data-cursor]');
       cur.classList.toggle('is-hover', !!t);
@@ -172,18 +200,28 @@
   }
 
   /* ------------------------------------------------------------------ *
+   * Hero: scalda la tazza
+   * ------------------------------------------------------------------ */
+  $('#heatBtn').addEventListener('click', () => { if (has3D()) window.TDM3D.burst(); audio.crack(6); });
+  $('#hero').addEventListener('click', (e) => {
+    if (e.target.closest('a, button')) return;
+    if (has3D()) window.TDM3D.burst();
+    audio.crack(4);
+  });
+
+  /* ------------------------------------------------------------------ *
    * Reveal, contatori, manifesto parola per parola
    * ------------------------------------------------------------------ */
   const io = new IntersectionObserver((entries) => {
     entries.forEach((en) => { if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); } });
   }, { threshold: .15, rootMargin: '0px 0px -6% 0px' });
-  $$('.reveal').forEach((el, i) => { el.style.setProperty('--d', (i % 4) * .08 + 's'); io.observe(el); });
+  $$('.reveal').forEach((el, i) => { el.style.setProperty('--d', (i % 4) * .09 + 's'); io.observe(el); });
 
   const countIO = new IntersectionObserver((entries) => {
     entries.forEach((en) => {
       if (!en.isIntersecting) return;
       countIO.unobserve(en.target);
-      const el = en.target, end = +el.dataset.count, suf = el.dataset.suffix || '', t0 = performance.now(), dur = reduceMotion ? 1 : 2000;
+      const el = en.target, end = +el.dataset.count, suf = el.dataset.suffix || '', t0 = performance.now(), dur = reduceMotion ? 1 : 2200;
       (function step(t) {
         const p = clamp((t - t0) / dur), e = p === 1 ? 1 : 1 - Math.pow(2, -10 * p);
         el.textContent = Math.round(end * e).toLocaleString('it-IT') + suf;
@@ -198,10 +236,44 @@
   const words = $$('.w', mText);
   function updateManifesto() {
     const r = mText.getBoundingClientRect();
-    const p = clamp((innerHeight * .85 - r.top) / (r.height + innerHeight * .35));
+    const p = clamp((innerHeight * .8 - r.top) / (r.height + innerHeight * .3));
     const n = Math.round(p * words.length);
     words.forEach((w, i) => w.classList.toggle('on', i < n));
   }
+
+  /* ------------------------------------------------------------------ *
+   * Laboratorio: fasi, letture strumenti, barre cinema
+   * ------------------------------------------------------------------ */
+  const lab = $('#lab'), steps = $$('.step'), dots = $$('#labDots li');
+  const STEP_AT = [.07, .3, .5, .72, .93];
+  let labP = 0, labStep = -1;
+  function updateLab() {
+    const r = lab.getBoundingClientRect();
+    labP = clamp(-r.top / Math.max(1, r.height - innerHeight));
+    const inView = r.top < innerHeight * .25 && r.bottom > innerHeight * .75;
+    document.body.classList.toggle('cine', inView && !document.body.classList.contains('intro'));
+    $('#labBar').style.transform = `scaleX(${labP})`;
+    const st = Math.min(4, Math.floor(labP * 5));
+    if (st !== labStep) {
+      labStep = st;
+      steps.forEach((s, i) => s.classList.toggle('is-on', i === st));
+      dots.forEach((d, i) => { d.classList.toggle('is-on', i === st); d.classList.toggle('is-done', i < st); });
+      $('#roPhase').textContent = `0${st + 1}/05`;
+    }
+    const temp = piecewise([[0, 22], [.55, 22], [.62, 320], [.71, 1240], [.8, 1190], [.88, 64], [1, 64]], labP);
+    const rpm = piecewise([[0, 0], [.16, 0], [.24, 240], [.36, 240], [.43, 0], [1, 0]], labP);
+    const hum = piecewise([[0, 24], [.36, 18], [.44, 4], [.6, 0], [1, 0]], labP);
+    const t = $('#roTemp');
+    t.textContent = Math.round(temp).toLocaleString('it-IT') + ' °C';
+    t.classList.toggle('hot', temp > 250);
+    $('#roRpm').textContent = Math.round(rpm) + ' rpm';
+    $('#roHum').textContent = Math.round(hum) + '%';
+  }
+  $('#labDots').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-step]'); if (!b) return;
+    const top = lab.getBoundingClientRect().top + scrollY;
+    scrollToTarget(top + STEP_AT[+b.dataset.step] * (lab.offsetHeight - innerHeight));
+  });
 
   /* ------------------------------------------------------------------ *
    * Shop
@@ -221,7 +293,7 @@
 
   const cardIO = new IntersectionObserver((entries) => {
     let i = 0;
-    entries.forEach((en) => { if (en.isIntersecting) { const el = en.target; setTimeout(() => el.classList.add('in'), i++ * 90); cardIO.unobserve(el); } });
+    entries.forEach((en) => { if (en.isIntersecting) { const el = en.target; setTimeout(() => el.classList.add('in'), i++ * 100); cardIO.unobserve(el); } });
   }, { threshold: .1 });
 
   function renderGrid() {
@@ -233,8 +305,8 @@
     grid.innerHTML = list.map((p) => `
       <article class="card" data-id="${p.id}">
         ${p.badge ? `<span class="card__badge">${esc(p.badge)}</span>` : ''}
-        <button class="card__open" data-open="${p.id}" data-cursor="dettagli" aria-label="Vedi ${esc(p.name)}"></button>
-        <div class="card__art" data-hint="Guarda da vicino">${mugSVG(p)}</div>
+        <button class="card__open" data-open="${p.id}" data-cursor="360°" aria-label="Vedi ${esc(p.name)}"></button>
+        <div class="card__art" data-hint="${has3D() ? 'Gira a 360°' : 'Guarda da vicino'}">${art(p, p.name)}</div>
         <div class="card__info">
           <span class="card__cat">${esc(catLabel(p.cat))} · ${esc(p.cap)}</span>
           <h3 class="card__name">${esc(p.name)}</h3>
@@ -242,16 +314,31 @@
             <button class="card__add" data-add="${p.id}" aria-label="Aggiungi ${esc(p.name)} al carrello" data-cursor="aggiungi">+</button></div>
         </div>
       </article>`).join('');
-    $$('.card', grid).forEach((c) => cardIO.observe(c));
-    if (finePointer && !reduceMotion) $$('.card', grid).forEach(tilt);
+    $$('.card', grid).forEach((c) => { cardIO.observe(c); if (finePointer && !reduceMotion) enhanceCard(c); });
   }
-  function tilt(card) {
+  function enhanceCard(card) {
+    const p = PRODUCTS.find((x) => x.id === card.dataset.id);
+    let spinning = false, frameI = 0, timer = null;
     card.addEventListener('mousemove', (e) => {
       const r = card.getBoundingClientRect();
       const x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5;
-      card.style.transform = `perspective(900px) rotateY(${x * 8}deg) rotateX(${-y * 8}deg)`;
+      card.style.transform = `perspective(1000px) rotateY(${x * 7}deg) rotateX(${-y * 7}deg)`;
     });
-    card.addEventListener('mouseleave', () => { card.style.transform = ''; });
+    card.addEventListener('mouseenter', async () => {
+      const tt = getTurntable(p.id, p); if (!tt) return;
+      spinning = true;
+      const frames = await tt;
+      const img = $('.card__art img', card);
+      if (!spinning || !img) return;
+      clearInterval(timer);
+      timer = setInterval(() => { frameI = (frameI + 1) % frames.length; img.src = frames[frameI]; }, 1000 / 18);
+    });
+    card.addEventListener('mouseleave', () => {
+      card.style.transform = ''; spinning = false; clearInterval(timer);
+      const img = $('.card__art img', card);
+      if (img && has3D()) img.src = window.TDM3D.renderStill(p);
+      frameI = 0;
+    });
   }
   grid.addEventListener('click', (e) => {
     const add = e.target.closest('[data-add]');
@@ -262,12 +349,16 @@
   renderGrid();
 
   /* ------------------------------------------------------------------ *
-   * Modali / drawer (gestione comune)
+   * Modali / drawer
    * ------------------------------------------------------------------ */
   const overlay = $('#overlay'), drawer = $('#drawer');
   let lastFocus = null;
   const openLayers = [];
-  function lock() { document.body.classList.toggle('no-scroll', openLayers.length > 0 || menu.classList.contains('is-open')); }
+  function lock() {
+    const locked = openLayers.length > 0 || menu.classList.contains('is-open');
+    document.body.classList.toggle('no-scroll', locked);
+    if (lenis && loader.done) locked ? lenis.stop() : lenis.start();
+  }
   function openModal(el) {
     lastFocus = document.activeElement;
     el.classList.add('is-open'); el.setAttribute('aria-hidden', 'false'); openLayers.push(el); lock();
@@ -276,11 +367,10 @@
   function closeModal(el) {
     el.classList.remove('is-open'); el.setAttribute('aria-hidden', 'true');
     const i = openLayers.indexOf(el); if (i > -1) openLayers.splice(i, 1);
+    if (el === pm) stopModalSpin();
     lock(); if (lastFocus && lastFocus.focus) lastFocus.focus({ preventScroll: true });
   }
-  $$('.modal').forEach((m) => {
-    m.addEventListener('click', (e) => { if (e.target === m || e.target.closest('[data-close]')) closeModal(m); });
-  });
+  $$('.modal').forEach((m) => m.addEventListener('click', (e) => { if (e.target === m || e.target.closest('[data-close]')) closeModal(m); }));
   function openDrawer() {
     lastFocus = document.activeElement;
     drawer.classList.add('is-open'); drawer.setAttribute('aria-hidden', 'false'); overlay.classList.add('is-on'); openLayers.push(drawer); lock();
@@ -303,20 +393,34 @@
     top === drawer ? closeDrawer() : closeModal(top);
   });
 
-  /* Dettaglio prodotto */
-  const pm = $('#productModal');
-  let pmId = null, pmQty = 1;
-  function openProduct(id) {
+  /* Dettaglio prodotto con rotazione a 360° */
+  const pm = $('#productModal'), pmArt = $('#pmArt');
+  let pmId = null, pmQty = 1, pmFrames = null, pmFrame = 0, pmAuto = null, pmDrag = null;
+  function stopModalSpin() { clearInterval(pmAuto); pmAuto = null; }
+  function showFrame() { const img = $('img', pmArt); if (img && pmFrames) img.src = pmFrames[((pmFrame % pmFrames.length) + pmFrames.length) % pmFrames.length]; }
+  async function openProduct(id) {
     const p = PRODUCTS.find((x) => x.id === id); if (!p) return;
-    pmId = id; pmQty = 1; $('#pmQty').textContent = 1;
-    $('#pmArt').innerHTML = mugSVG(p);
+    pmId = id; pmQty = 1; $('#pmQty').textContent = 1; pmFrames = null; pmFrame = 0;
+    pmArt.innerHTML = art(p, p.name) + `<span class="modal__hint mono" id="pmHint">${has3D() ? 'trascina per ruotare · 360°' : ''}</span>`;
     $('#pmCat').textContent = catLabel(p.cat);
     $('#pmName').textContent = p.name;
     $('#pmPrice').textContent = money(p.price);
     $('#pmDesc').textContent = p.desc;
-    $('#pmSpecs').innerHTML = [`Capacità ${p.cap}`, `Peso ${p.peso}`, GLAZES[p.glaze].name, 'Lavastoviglie ok', 'Fatta ad Arena'].map((s) => `<li>${esc(s)}</li>`).join('');
+    $('#pmSpecs').innerHTML = [`Capacità ${p.cap}`, `Peso ${p.peso}`, GLAZES[p.glaze].name, p.finish === 'opaco' ? 'Finitura opaca' : 'Finitura lucida', 'Fatta ad Arena'].map((s) => `<li>${esc(s)}</li>`).join('');
     openModal(pm);
+    const tt = getTurntable(p.id, p);
+    if (tt) {
+      $('#pmHint').textContent = 'preparo il giro a 360°…';
+      pmFrames = await tt;
+      if (pmId !== id || !pm.classList.contains('is-open')) return;
+      $('#pmHint').textContent = 'trascina per ruotare · 360°';
+      stopModalSpin();
+      if (!reduceMotion) pmAuto = setInterval(() => { pmFrame++; showFrame(); }, 1000 / 14);
+    }
   }
+  pmArt.addEventListener('pointerdown', (e) => { if (!pmFrames) return; stopModalSpin(); pmDrag = { x: e.clientX, f: pmFrame }; pmArt.setPointerCapture(e.pointerId); });
+  pmArt.addEventListener('pointermove', (e) => { if (!pmDrag) return; pmFrame = pmDrag.f + Math.round((pmDrag.x - e.clientX) / 14); showFrame(); });
+  pmArt.addEventListener('pointerup', () => { pmDrag = null; });
   $('#pmMinus').addEventListener('click', () => { pmQty = Math.max(1, pmQty - 1); $('#pmQty').textContent = pmQty; });
   $('#pmPlus').addEventListener('click', () => { pmQty = Math.min(20, pmQty + 1); $('#pmQty').textContent = pmQty; });
   $('#pmAdd').addEventListener('click', () => { addToCart(pmId, pmQty); closeModal(pm); });
@@ -329,17 +433,17 @@
   let cart = store.get(CART_KEY, []);
   let coupon = store.get('tdm-coupon-v1', null);
   if (!Array.isArray(cart)) cart = [];
-  // Ripulisce eventuali righe non valide lette da localStorage
-  cart = cart.filter((l) => l && typeof l.key === 'string' && Number.isInteger(l.qty) && l.qty > 0 && (l.custom || PRODUCTS.some((p) => p.id === l.key)));
+  cart = cart.filter((l) => l && typeof l.key === 'string' && Number.isInteger(l.qty) && l.qty > 0 &&
+    (l.custom ? (SHAPES[l.custom.shape] && GLAZES[l.custom.glaze] && EMBLEMS[l.custom.emblem]) : PRODUCTS.some((p) => p.id === l.key)));
   if (coupon && !COUPONS[coupon]) coupon = null;
 
   const itemInfo = (l) => {
     if (l.custom) {
       const c = l.custom;
-      return { name: 'Tazza su misura', price: c.price, art: mugSVG({ ...c, steam: false }), meta: `${SHAPES[c.shape].label} · ${GLAZES[c.glaze].name}${c.label ? ' · “' + c.label + '”' : ''}` };
+      return { name: 'Tazza su misura', price: c.price, cfg: c, meta: `${SHAPES[c.shape].label} · ${GLAZES[c.glaze].name}${c.label ? ' · “' + c.label + '”' : ''}` };
     }
     const p = PRODUCTS.find((x) => x.id === l.key);
-    return { name: p.name, price: p.price, art: mugSVG({ ...p, steam: false }), meta: `${p.cap} · ${GLAZES[p.glaze].name}` };
+    return { name: p.name, price: p.price, cfg: p, meta: `${p.cap} · ${GLAZES[p.glaze].name}` };
   };
   function totals() {
     const sub = cart.reduce((s, l) => s + itemInfo(l).price * l.qty, 0);
@@ -359,7 +463,7 @@
     $('#cartItems').innerHTML = cart.map((l) => {
       const i = itemInfo(l);
       return `<li class="ci" data-key="${esc(l.key)}">
-        <div class="ci__art">${i.art}</div>
+        <div class="ci__art">${art({ ...i.cfg, steam: false }, i.name)}</div>
         <div><div class="ci__name">${esc(i.name)}</div><div class="ci__meta">${esc(i.meta)}</div>
           <div class="qty"><button data-dec aria-label="Meno">−</button><span>${l.qty}</span><button data-inc aria-label="Più">+</button></div></div>
         <div><div class="ci__price">${money(i.price * l.qty)}</div><button class="ci__rm" data-rm>Rimuovi</button></div>
@@ -382,6 +486,7 @@
     saveCart(); renderCart();
     const name = custom ? 'Tazza su misura' : PRODUCTS.find((p) => p.id === key).name;
     toast(`${name} aggiunta al carrello ✓`);
+    audio.clink();
   }
   $('#cartItems').addEventListener('click', (e) => {
     const li = e.target.closest('.ci'); if (!li) return;
@@ -412,94 +517,49 @@
   coForm.addEventListener('submit', (e) => {
     e.preventDefault();
     $('#orderNum').textContent = 'TDM-' + String(Math.floor(Math.random() * 900000) + 100000);
-    $('#doneMug').innerHTML = mugSVG({ glaze: 'oro', shape: 'classica', emblem: 'swirl' });
+    $('#doneMug').innerHTML = art({ glaze: 'oro', shape: 'classica', emblem: 'swirl' }, 'Tazza oro');
     cart = []; coupon = null; $('#couponInput').value = ''; saveCart(); renderCart();
     coForm.hidden = true; coDone.hidden = false;
+    audio.crack(8);
   });
-  $('#emptyMug').innerHTML = mugSVG({ glaze: 'osso', shape: 'classica', emblem: 'nessuno', steam: false });
   renderCart();
 
   /* ------------------------------------------------------------------ *
-   * Laboratorio: illustrazioni, mappa e scroll orizzontale
-   * ------------------------------------------------------------------ */
-  const ART = {
-    argilla: `<svg viewBox="0 0 200 200"><ellipse cx="100" cy="168" rx="70" ry="10" fill="#000" opacity=".35"/>
-      <path class="anim-pulse" d="M40 150c-6-40 10-84 60-92 52-8 78 36 62 86-6 14-30 20-60 20s-58-4-62-14z" fill="#6b3f1d"/>
-      <path d="M62 112c18-10 40-8 60 4M56 132c24-8 52-6 80 4M78 90c14-6 30-4 42 4" stroke="#9a6234" stroke-width="5" fill="none" stroke-linecap="round"/>
-      <circle cx="132" cy="84" r="6" fill="#9a6234" opacity=".6"/></svg>`,
-    tornio: `<svg viewBox="0 0 200 200"><ellipse cx="100" cy="168" rx="72" ry="14" fill="#2a1a0e"/><ellipse class="anim-spin" cx="100" cy="150" rx="62" ry="12" fill="none" stroke="#e3a72f" stroke-width="3" stroke-dasharray="14 10"/>
-      <path d="M72 150c-14-30-6-60 12-76 6-6 4-14 0-20h32c-4 6-6 14 0 20 18 16 26 46 12 76z" fill="#9a6234"/>
-      <path d="M84 74c-6 12-8 30-2 48" stroke="#f7d77a" stroke-width="4" fill="none" stroke-linecap="round" opacity=".6"/>
-      <path d="M142 90c10-8 22-6 30 4" stroke="#e3a72f" stroke-width="5" fill="none" stroke-linecap="round"/></svg>`,
-    smalto: `<svg viewBox="0 0 200 200"><path d="M50 70h100l-10 90a10 10 0 0 1-10 8H70a10 10 0 0 1-10-8z" fill="#3f2410"/>
-      <ellipse cx="100" cy="70" rx="50" ry="12" fill="#e3a72f"/><ellipse cx="100" cy="72" rx="42" ry="8" fill="#f7d77a"/>
-      <path d="M70 80v26a6 6 0 0 0 12 0V84M110 80v44a6 6 0 0 0 12 0V84M92 84v14a5 5 0 0 0 10 0V84" fill="#e3a72f"/>
-      <circle class="anim-rise" cx="76" cy="132" r="5" fill="#e3a72f"/><circle class="anim-rise" style="animation-delay:-1.2s" cx="116" cy="148" r="5" fill="#b6f23a"/></svg>`,
-    forno: `<svg viewBox="0 0 200 200"><path d="M30 180V90a70 70 0 0 1 140 0v90z" fill="#2a1a0e" stroke="#6b3f1d" stroke-width="6"/>
-      <path d="M62 180v-60a38 38 0 0 1 76 0v60z" fill="#0a0705"/>
-      <path class="anim-flicker" d="M100 178c-26 0-34-22-22-40 4 8 10 10 14 8-4-14 2-26 12-36 2 14 16 22 18 40 2 18-6 28-22 28z" fill="#e8452c"/>
-      <path class="anim-flicker" style="animation-delay:-.4s" d="M100 178c-14 0-18-12-12-22 3 5 6 5 8 4-2-8 1-14 6-18 1 8 8 12 9 22 1 9-3 14-11 14z" fill="#e3a72f"/>
-      <rect x="90" y="30" width="20" height="14" rx="3" fill="#6b3f1d"/></svg>`,
-    collaudo: `<svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="72" fill="none" stroke="#e3a72f" stroke-width="3" stroke-dasharray="3 9"/>
-      <path d="M62 92h66l-4 50a10 10 0 0 1-10 9H76a10 10 0 0 1-10-9z" fill="#efe4d0"/><path d="M128 102c18-2 18 26-2 26" fill="none" stroke="#efe4d0" stroke-width="8" stroke-linecap="round"/>
-      <ellipse cx="95" cy="92" rx="33" ry="7" fill="#b9a98c"/>
-      <circle cx="146" cy="58" r="22" fill="#b6f23a"/><path d="M135 58l8 8 14-16" stroke="#0a0705" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`
-  };
-  $$('[data-art]').forEach((el) => { el.innerHTML = ART[el.dataset.art] || ''; });
-
-  $('#mapArt').innerHTML = `<svg viewBox="0 0 200 400" role="img" aria-label="Mappa stilizzata della Calabria con Arena evidenziata">
-    <path d="M118 8L150 22 168 50 178 85 172 120 182 160 176 190 150 215 140 250 128 290 132 330 120 372 100 392 84 376 78 340 58 316 66 284 82 262 80 232 66 214 68 184 58 160 62 128 52 96 60 64 88 40Z" fill="rgba(10,7,5,.12)" stroke="#0a0705" stroke-width="3" stroke-linejoin="round"/>
-    <g font-family="Space Grotesk, sans-serif" font-size="9" letter-spacing="2" fill="#0a0705" opacity=".6"><text x="4" y="150">TIRRENO</text><text x="140" y="300">IONIO</text></g>
-    <g transform="translate(98 262)"><circle class="anim-pulse" r="18" fill="#0a0705" opacity=".25"/><circle r="7" fill="#0a0705"/><circle r="2.500" fill="#e3a72f"/></g>
-    <g font-family="Unbounded, sans-serif" font-weight="800" font-size="12" fill="#0a0705"><text x="112" y="258">ARENA</text><text x="112" y="271" font-size="8" font-weight="500" font-family="Space Grotesk, sans-serif" letter-spacing="1.500">VIBO VALENTIA</text></g></svg>`;
-
-  const lab = $('#lab'), labTrack = $('#labTrack'), labBar = $('#labBar'), labHead = $('.lab__head');
-  const desk = window.matchMedia('(min-width: 861px)');
-  let labShift = 0;
-  function measureLab() {
-    if (!desk.matches || reduceMotion) { lab.style.height = ''; labShift = 0; labTrack.style.transform = ''; return; }
-    const visible = $('#labView').clientWidth;
-    labShift = Math.max(0, labTrack.scrollWidth - visible);
-    lab.style.height = innerHeight + labShift * 1.05 + 'px';
-  }
-  function updateLab() {
-    if (!desk.matches || reduceMotion) return;
-    const r = lab.getBoundingClientRect();
-    const p = clamp(-r.top / (r.height - innerHeight));
-    labTrack.style.transform = `translate3d(${-p * labShift}px,0,0)`;
-    labBar.style.transform = `scaleX(${p})`;
-  }
-
-  /* ------------------------------------------------------------------ *
-   * Configuratore tazza su misura
+   * Configuratore (la tazza 3D della scena si posiziona nel riquadro)
    * ------------------------------------------------------------------ */
   const cfg = { shape: 'classica', glaze: 'cioccolato', emblem: 'swirl', label: '' };
   const cfgPrice = () => 29 + { classica: 0, alta: 3, bowl: 4 }[cfg.shape] + (cfg.label.trim() ? 4 : 0) + (cfg.emblem === 'fiamma' ? 2 : 0);
   const chips = (el, items, key) => {
-    el.innerHTML = items.map(([v, l]) => `<button type="button" data-v="${v}" class="${cfg[key] === v ? 'is-active' : ''}">${esc(l)}</button>`).join('');
+    el.innerHTML = items.map(([v, l]) => `<button type="button" data-v="${v}">${esc(l)}</button>`).join('');
     el.addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; cfg[key] = b.dataset.v; renderCfg(); });
   };
   chips($('#cfgShape'), Object.entries(SHAPES).map(([k, s]) => [k, s.label]), 'shape');
   chips($('#cfgEmblem'), Object.entries(EMBLEMS), 'emblem');
-  $('#cfgGlaze').innerHTML = Object.entries(GLAZES).map(([k, g]) => `<button type="button" data-v="${k}" aria-label="${esc(g.name)}" title="${esc(g.name)}" style="background:linear-gradient(135deg, ${g.light}, ${g.base} 55%, ${g.dark})"></button>`).join('');
+  $('#cfgGlaze').innerHTML = Object.entries(GLAZES).map(([k, g]) => `<button type="button" data-v="${k}" aria-label="${esc(g.name)}" title="${esc(g.name)}" style="background:radial-gradient(circle at 35% 30%, ${g.light}, ${g.base} 55%, ${g.dark})"></button>`).join('');
   $('#cfgGlaze').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; cfg.glaze = b.dataset.v; renderCfg(); });
   $('#cfgLabel').addEventListener('input', (e) => { cfg.label = e.target.value.replace(/[^\p{L}\p{N} '’!?.,\-]/gu, '').slice(0, 18); renderCfg(); });
+  let cfgDebounce;
   function renderCfg() {
-    $('#cfgPreview').innerHTML = mugSVG(cfg);
-    ['cfgShape', 'cfgEmblem', 'cfgGlaze'].forEach((id) => {
-      const key = { cfgShape: 'shape', cfgEmblem: 'emblem', cfgGlaze: 'glaze' }[id];
-      $$('button', $('#' + id)).forEach((b) => b.classList.toggle('is-active', b.dataset.v === cfg[key]));
-    });
+    const map = { cfgShape: 'shape', cfgEmblem: 'emblem', cfgGlaze: 'glaze' };
+    Object.entries(map).forEach(([id, key]) => $$('button', $('#' + id)).forEach((b) => {
+      b.classList.toggle('is-active', b.dataset.v === cfg[key]);
+      b.setAttribute('aria-pressed', String(b.dataset.v === cfg[key]));
+    }));
     $('#cfgGlazeName').textContent = GLAZES[cfg.glaze].name;
     $('#cfgCount').textContent = cfg.label.length;
     $('#cfgPrice').textContent = money(cfgPrice());
+    if (has3D()) {
+      clearTimeout(cfgDebounce);
+      cfgDebounce = setTimeout(() => window.TDM3D.setCustom({ ...cfg, label: cfg.label.trim() }), 120);
+    } else $('#cfgFallback').innerHTML = mugSVG(cfg);
   }
-  $('#cfgPreview').addEventListener('mousemove', (e) => {
-    if (reduceMotion) return;
-    const r = e.currentTarget.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - .5;
-    $('.mug', e.currentTarget).style.transform = `rotate(${x * 14}deg) scale(1.03)`;
-  });
-  $('#cfgPreview').addEventListener('mouseleave', (e) => { const m = $('.mug', e.currentTarget); if (m) m.style.transform = ''; });
+  (function cfgDrag() {
+    const box = $('#cfgPreview'); let last = null;
+    box.addEventListener('pointerdown', (e) => { last = e.clientX; box.setPointerCapture(e.pointerId); });
+    box.addEventListener('pointermove', (e) => { if (last === null || !has3D()) return; window.TDM3D.drag(e.clientX - last); last = e.clientX; });
+    box.addEventListener('pointerup', () => { last = null; });
+    box.addEventListener('pointercancel', () => { last = null; });
+  })();
   $('#cfgForm').addEventListener('submit', (e) => {
     e.preventDefault();
     const label = cfg.label.trim();
@@ -509,45 +569,111 @@
   renderCfg();
 
   /* ------------------------------------------------------------------ *
-   * Recensioni: trascinamento orizzontale con il mouse
+   * Recensioni trascinabili
    * ------------------------------------------------------------------ */
   (function dragScroll() {
     const el = $('#vociTrack'); let down = false, sx = 0, sl = 0, moved = false;
     el.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') return; down = true; moved = false; sx = e.clientX; sl = el.scrollLeft; });
-    window.addEventListener('pointermove', (e) => {
+    addEventListener('pointermove', (e) => {
       if (!down) return;
       const dx = e.clientX - sx;
       if (Math.abs(dx) > 4) { moved = true; el.classList.add('drag'); }
       el.scrollLeft = sl - dx;
     });
-    window.addEventListener('pointerup', () => { down = false; el.classList.remove('drag'); });
+    addEventListener('pointerup', () => { down = false; el.classList.remove('drag'); });
     el.addEventListener('click', (e) => { if (moved) e.preventDefault(); }, true);
   })();
 
-  /* ------------------------------------------------------------------ *
-   * FAQ: una sola risposta aperta alla volta
-   * ------------------------------------------------------------------ */
+  /* FAQ: una sola risposta aperta */
   const faqs = $$('.faq details');
   faqs.forEach((d) => d.addEventListener('toggle', () => { if (d.open) faqs.forEach((o) => { if (o !== d) o.open = false; }); }));
 
-  /* ------------------------------------------------------------------ *
-   * Newsletter (demo: nessun invio reale)
-   * ------------------------------------------------------------------ */
+  /* Newsletter (demo: nessun invio reale) */
   $('#newsForm').addEventListener('submit', (e) => {
     e.preventDefault();
-    const msg = $('#newsMsg'), mail = $('#newsEmail').value.trim();
-    msg.textContent = `Benvenuto nel club! Codice ARENA10 per ${mail.replace(/^(.).*(@.*)$/, '$1•••$2')} (demo).`;
+    const mail = $('#newsEmail').value.trim();
+    $('#newsMsg').textContent = `Benvenuto nel club! Codice ARENA10 per ${mail.replace(/^(.).*(@.*)$/, '$1•••$2')} (demo).`;
     e.target.reset();
+  });
+
+  /* ------------------------------------------------------------------ *
+   * Audio d'ambiente sintetizzato (nessun file): stanza, bordone, forno
+   * ------------------------------------------------------------------ */
+  const audio = (() => {
+    let ctx = null, master = null, on = false, timer = null, noiseBuf = null;
+    function build() {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return false;
+      ctx = new AC();
+      master = ctx.createGain(); master.gain.value = 0; master.connect(ctx.destination);
+      const len = ctx.sampleRate * 4, brown = ctx.createBuffer(1, len, ctx.sampleRate), d = brown.getChannelData(0);
+      let last = 0;
+      for (let i = 0; i < len; i++) { last = (last + .02 * (Math.random() * 2 - 1)) / 1.02; d[i] = last * 3.5; }
+      const room = ctx.createBufferSource(); room.buffer = brown; room.loop = true;
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 420;
+      const rg = ctx.createGain(); rg.gain.value = .5;
+      room.connect(lp).connect(rg).connect(master); room.start();
+      [[55, .05], [82.4, .022], [110.6, .012]].forEach(([f, g]) => {
+        const o = ctx.createOscillator(); o.frequency.value = f;
+        const lfo = ctx.createOscillator(); lfo.frequency.value = .07 + Math.random() * .05;
+        const lg = ctx.createGain(); lg.gain.value = f * .004; lfo.connect(lg).connect(o.frequency); lfo.start();
+        const og = ctx.createGain(); og.gain.value = g; o.connect(og).connect(master); o.start();
+      });
+      noiseBuf = ctx.createBuffer(1, ctx.sampleRate * .05, ctx.sampleRate);
+      const nd = noiseBuf.getChannelData(0);
+      for (let i = 0; i < nd.length; i++) nd[i] = (Math.random() * 2 - 1) * Math.exp(-i / (nd.length * .12));
+      return true;
+    }
+    function pop(gain = .25) {
+      if (!ctx || !on) return;
+      const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.playbackRate.value = .6 + Math.random() * 1.2;
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 900 + Math.random() * 3500; bp.Q.value = 1.4;
+      const g = ctx.createGain(); g.gain.value = gain * (.3 + Math.random());
+      s.connect(bp).connect(g).connect(master); s.start();
+    }
+    function heat() {
+      const h = has3D() ? window.TDM3D.heat : 0;
+      return Math.max(h, labP > .6 && labP < .82 ? .8 : 0);
+    }
+    return {
+      toggle() {
+        if (!ctx && !build()) { toast('Audio non supportato da questo browser'); return false; }
+        on = !on;
+        if (on) {
+          ctx.resume();
+          master.gain.cancelScheduledValues(ctx.currentTime);
+          master.gain.linearRampToValueAtTime(.8, ctx.currentTime + 1.5);
+          timer = setInterval(() => { if (Math.random() < .03 + heat() * .55) pop(.12 + heat() * .25); }, 55);
+        } else {
+          master.gain.cancelScheduledValues(ctx.currentTime);
+          master.gain.linearRampToValueAtTime(0, ctx.currentTime + .6);
+          clearInterval(timer);
+        }
+        return on;
+      },
+      crack(n = 4) { for (let i = 0; i < n; i++) setTimeout(() => pop(.35), i * (40 + Math.random() * 90)); },
+      clink() {
+        if (!ctx || !on) return;
+        [1320, 1980, 2640].forEach((f, i) => {
+          const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f * (1 + Math.random() * .01);
+          const g = ctx.createGain(); g.gain.setValueAtTime(.08 / (i + 1), ctx.currentTime); g.gain.exponentialRampToValueAtTime(.0001, ctx.currentTime + 1.2);
+          o.connect(g).connect(master); o.start(); o.stop(ctx.currentTime + 1.3);
+        });
+      }
+    };
+  })();
+  $('#soundBtn').addEventListener('click', (e) => {
+    const on = audio.toggle();
+    e.currentTarget.setAttribute('aria-pressed', String(!!on));
+    e.currentTarget.setAttribute('aria-label', on ? "Disattiva l'audio d'ambiente" : "Attiva l'audio d'ambiente");
   });
 
   /* ------------------------------------------------------------------ *
    * Loop scroll unificato
    * ------------------------------------------------------------------ */
   let ticking = false;
-  function onFrameScroll() { onScroll(); updateManifesto(); updateLab(); ticking = false; }
-  window.addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(onFrameScroll); } }, { passive: true });
-  window.addEventListener('resize', () => { measureLab(); onFrameScroll(); });
-  desk.addEventListener('change', () => { measureLab(); onFrameScroll(); });
-  window.addEventListener('load', () => { measureLab(); onFrameScroll(); });
-  measureLab(); onFrameScroll();
+  function onFrameScroll() { onScroll(); updateManifesto(); updateLab(); updateChapter(); ticking = false; }
+  addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(onFrameScroll); } }, { passive: true });
+  addEventListener('resize', onFrameScroll);
+  onFrameScroll();
 })();

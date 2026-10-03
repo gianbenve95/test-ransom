@@ -3,12 +3,12 @@
    ========================================================================== */
 
 const GLAZES = {
-  cioccolato: { name: 'Cioccolato Fondente', base: '#6b3f1d', light: '#9a6234', dark: '#3f2410', emblem: '#f4ead8' },
-  oro:        { name: 'Oro di Arena',        base: '#e3a72f', light: '#f7d77a', dark: '#a8731a', emblem: '#3f2410' },
-  acido:      { name: 'Verde Acido',         base: '#9bdc2a', light: '#d4ff7a', dark: '#5f9412', emblem: '#16110d' },
-  notte:      { name: 'Nero Pece',           base: '#1d1712', light: '#4a3b2e', dark: '#0a0705', emblem: '#e3a72f' },
-  osso:       { name: 'Bianco Osso',         base: '#efe4d0', light: '#fffaf0', dark: '#b9a98c', emblem: '#6b3f1d' },
-  nduja:      { name: 'Rosso ’Nduja',   base: '#c8381b', light: '#f0735a', dark: '#7e1d0a', emblem: '#f4ead8' }
+  cioccolato: { name: 'Cioccolato Fondente', base: '#6b3f1d', light: '#9a6234', dark: '#3f2410', emblem: '#f4ead8', rough: .14, metal: 0, coat: .85 },
+  oro:        { name: 'Oro di Arena',        base: '#e3a72f', light: '#f7d77a', dark: '#a8731a', emblem: '#3f2410', rough: .22, metal: .92, coat: .35 },
+  acido:      { name: 'Verde Acido',         base: '#9bdc2a', light: '#d4ff7a', dark: '#5f9412', emblem: '#16110d', rough: .15, metal: 0, coat: .8 },
+  notte:      { name: 'Nero Pece',           base: '#1d1712', light: '#4a3b2e', dark: '#0a0705', emblem: '#e3a72f', rough: .1, metal: 0, coat: 1 },
+  osso:       { name: 'Bianco Osso',         base: '#efe4d0', light: '#fffaf0', dark: '#b9a98c', emblem: '#6b3f1d', rough: .2, metal: 0, coat: .6 },
+  nduja:      { name: 'Rosso ’Nduja',   base: '#c8381b', light: '#f0735a', dark: '#7e1d0a', emblem: '#f4ead8', rough: .14, metal: 0, coat: .85 }
 };
 
 const SHAPES = {
@@ -34,7 +34,7 @@ const PRODUCTS = [
     desc: 'Verde acido, serie numerata a 300 esemplari. Il dono perfetto per chi ti ha insegnato tanto. Soprattutto cosa non fare.', cap: '450 ml', peso: '440 g' },
   { id: 'stitica',    name: 'Stitichezza Deluxe',     cat: 'limited', price: 39, glaze: 'oro',        shape: 'bowl',     emblem: 'swirl',  label: 'CI STO PROVANDO', badge: 'Edizione limitata',
     desc: 'Bowl oro firmato dal Mastro, ogni pezzo ha una piccola imperfezione unica. Come i migliori sforzi.', cap: '500 ml', peso: '520 g' },
-  { id: 'notturna',   name: 'Turno di Notte',         cat: 'limited', price: 31, glaze: 'cioccolato', shape: 'alta',     emblem: 'nessuno',label: 'ANCORA SVEGLIO', badge: '',
+  { id: 'notturna',   name: 'Turno di Notte',         cat: 'limited', price: 31, glaze: 'cioccolato', shape: 'alta',     emblem: 'nessuno',label: 'ANCORA SVEGLIO', badge: '', finish: 'opaco',
     desc: 'Cioccolato opaco, scritta in rilievo. Per chi ha già perso il conto dei caffè.', cap: '450 ml', peso: '430 g' },
   { id: 'coppia',     name: 'Set Coppia “Amore Vero”', cat: 'set', price: 44, glaze: 'osso', shape: 'classica', emblem: 'swirl', label: 'AMORE VERO',     badge: 'Set da 2',
     desc: 'Due tazze, una scatola in cartone riciclato e un biglietto scritto a mano. Perché i sentimenti, come tutto il resto, vanno condivisi.', cap: '2 × 350 ml', peso: '800 g' },
